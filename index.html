@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoodMap - Sistem Integrasi Makanan Daerah</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap');
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: #020617; 
+            color: #f8fafc; 
+            scroll-behavior: smooth;
+        }
+
+        /* Glassmorphism Effect */
+        .glass { 
+            background: rgba(15, 23, 42, 0.7); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255, 255, 255, 0.05); 
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #020617; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #334155; }
+
+        /* Map Styling */
+        #map { 
+            height: 450px; 
+            border-radius: 2rem; 
+            z-index: 10; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .admin-border { border-color: #6366f1 !important; box-shadow: 0 0 20px rgba(99, 102, 241, 0.2); }
+        .gradient-text { background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        /* Animation Classes */
+        .fade-enter { opacity: 0; transform: translateY(20px); transition: all 0.5s ease-out; }
+        .fade-enter-active { opacity: 1; transform: translateY(0); }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <div id="topBar" class="fixed top-0 left-0 w-full h-1 z-[100] transition-all duration-700 bg-slate-800"></div>
+
+    <nav class="sticky top-4 z-50 container mx-auto px-4">
+        <div class="glass rounded-2xl px-6 py-4 flex justify-between items-center border border-slate-800">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid fa-map-location-dot text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-extrabold tracking-tighter leading-none">FOOD<span class="text-indigo-400">MAP</span></h1>
+                    <p class="text-[9px] text-slate-500 uppercase tracking-[0.2em] font-bold">Regional Food System</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-6">
+                <div id="modeBadge" class="hidden md:flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900 border border-slate-800 transition-all duration-500">
+                    <span class="relative flex h-2 w-2">
+                        <span id="pingNode" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span id="dotNode" class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span id="modeText" class="text-[10px] font-black uppercase tracking-widest text-slate-400">User Mode</span>
+                </div>
+                
+                <button onclick="toggleAdmin()" class="group relative px-6 py-2.5 overflow-hidden rounded-xl bg-indigo-600 transition-all active:scale-95">
+                    <span class="relative z-10 text-xs font-bold flex items-center gap-2">
+                        <i class="fa-solid fa-user-shield"></i> Switch Mode
+                    </span>
+                    <div class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform"></div>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <header class="container mx-auto px-4 pt-16 pb-12 text-center relative">
+        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-2xl h-64 bg-indigo-600/10 blur-[120px] rounded-full -z-10"></div>
+        <h2 class="text-5xl md:text-7xl font-black mb-6 tracking-tight leading-[1.1]">
+            Temukan Kelezatan <br><span class="gradient-text">Makanan Daerah.</span>
+        </h2>
+        <p class="text-slate-400 max-w-xl mx-auto mb-10 text-sm md:text-base leading-relaxed">
+            Sistem integrasi pemetaan kuliner nusantara untuk memudahkan pencarian lokasi dan informasi detail makanan daerah secara real-time[cite: 2, 67].
+        </p>
+        
+        <div class="max-w-2xl mx-auto relative group">
+            <i class="fa-solid fa-magnifying-glass absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400 transition-colors"></i>
+            <input type="text" id="searchInput" onkeyup="filterData()" placeholder="Cari Gudeg, Soto, atau wilayah tertentu..." 
+                class="w-full bg-slate-900/50 border border-slate-800 pl-14 pr-6 py-5 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all shadow-2xl">
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4">
+        
+        <section class="mb-16">
+            <div class="flex justify-between items-end mb-6">
+                <div>
+                    <h3 class="text-xl font-bold flex items-center gap-2">
+                        <i class="fa-solid fa-earth-asia text-indigo-500"></i> Sebaran Lokasi
+                    </h3>
+                    <p class="text-xs text-slate-500 mt-1">Gunakan peta untuk navigasi langsung ke lokasi warung.</p>
+                </div>
+                <div class="glass px-4 py-2 rounded-lg text-[10px] font-bold text-slate-400 border-slate-800">
+                    <i class="fa-solid fa-code text-indigo-400 mr-1"></i> Leaflet / OpenStreetMap (Free)
+                </div>
+            </div>
+            <div id="map"></div>
+        </section>
+
+        <section id="adminPanel" class="hidden opacity-0 translate-y-10 transition-all duration-700 mb-16">
+            <div class="glass p-8 md:p-10 rounded-[2.5rem] border-2 border-dashed border-slate-800 bg-slate-900/30">
+                <div class="flex items-center gap-4 mb-8">
+                    <div class="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center border border-indigo-500/20">
+                        <i class="fa-solid fa-plus text-indigo-400"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-black">Tambah Data Baru</h3>
+                        <p class="text-xs text-slate-500 font-medium">Lengkapi formulir di bawah untuk menambah data ke tb_makanan & tb_lokasi.</p>
+                    </div>
+                </div>
+
+                <form id="foodForm" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">Nama Makanan</label>
+                        <input type="text" id="nama" placeholder="Contoh: Gudeg Pawon" class="w-full bg-slate-950 p-4 rounded-xl border border-slate-800 outline-none focus:border-indigo-500" required>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">Wilayah / Provinsi</label>
+                        <input type="text" id="wilayah" placeholder="Contoh: DI Yogyakarta" class="w-full bg-slate-950 p-4 rounded-xl border border-slate-800 outline-none focus:border-indigo-500" required>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">Kategori</label>
+                        <select id="kategori" class="w-full bg-slate-950 p-4 rounded-xl border border-slate-800 outline-none focus:border-indigo-500">
+                            <option value="Manis">Manis</option>
+                            <option value="Pedas">Pedas</option>
+                            <option value="Gurih">Gurih</option>
+                            <option value="Asin">Asin</option>
+                        </select>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">Latitude</label>
+                        <input type="text" id="latitude" placeholder="-7.810" class="w-full bg-slate-950 p-4 rounded-xl border border-slate-800 outline-none focus:border-indigo-500" required>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">Longitude</label>
+                        <input type="text" id="longitude" placeholder="110.380" class="w-full bg-slate-950 p-4 rounded-xl border border-slate-800 outline-none focus:border-indigo-500" required>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">URL Foto (Optional)</label>
+                        <input type="text" id="foto_url" placeholder="https://..." class="w-full bg-slate-950 p-4 rounded-xl border border-slate-800 outline-none focus:border-indigo-500">
+                    </div>
+                    <div class="md:col-span-2 space-y-2">
+                        <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">Alamat Lengkap & Deskripsi</label>
+                        <input type="text" id="alamat" placeholder="Jl. Janturan No. 123, Yogyakarta..." class="w-full bg-slate-950 p-4 rounded-xl border border-slate-800 outline-none focus:border-indigo-500" required>
+                    </div>
+                    <div class="flex items-end">
+                        <button type="submit" class="w-full bg-indigo-600 h-[58px] rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-600/20 hover:bg-indigo-500 transition-all">
+                            <i class="fa-solid fa-cloud-arrow-up mr-2"></i> Simpan Data
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <div id="foodGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            </div>
+    </main>
+
+    <footer class="mt-32 py-16 border-t border-slate-900 text-center">
+        <div class="flex items-center justify-center gap-2 mb-4 opacity-50">
+            <div class="h-px w-8 bg-slate-500"></div>
+            <i class="fa-solid fa-map-pin"></i>
+            <div class="h-px w-8 bg-slate-500"></div>
+        </div>
+        <p class="text-xs font-bold uppercase tracking-[0.3em] text-slate-500">Project Kelompok 2</p>
+        <p class="text-sm text-slate-300 mt-4">Rakha Taufiqurrahman Faisal Aziz - 123230071 [cite: 11]</p>
+        <p class="text-[10px] text-slate-600 mt-2">Bimbingan: Bapak Heru Cahya Rustamaj, S.Si, M.T. [cite: 214]</p>
+    </footer>
+
+    <script>
+        let map = L.map('map', { scrollWheelZoom: false }).setView([-7.7956, 110.3695], 13);
+        let markers = [];
+        let allItems = [];
+        let isAdmin = false;
+
+        // Leaflet Tile Layer (Dark Mode Theme)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap &copy; CARTO'
+        }).addTo(map);
+
+        async function init() {
+            try {
+                const response = await fetch('/api/makanan');
+                allItems = await response.json();
+                renderCards(allItems);
+            } catch (err) {
+                console.error("Gagal memuat data:", err);
+            }
+        }
+
+        function renderCards(data) {
+            const grid = document.getElementById('foodGrid');
+            grid.innerHTML = '';
+            
+            // Bersihkan marker peta
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+
+            data.forEach((item, index) => {
+                const img = item.foto_url || `https://source.unsplash.com/featured/800x600?${item.nama},culinary`;
+                
+                // Render Card UI [cite: 152, 154]
+                const card = `
+                    <div class="glass group rounded-[2.5rem] overflow-hidden border border-slate-800 hover:border-indigo-500/50 transition-all duration-500 hover:-translate-y-2">
+                        <div class="relative h-60 overflow-hidden">
+                            <img src="${img}" class="w-full h-full object-cover group-hover:scale-110 transition duration-700" alt="${item.nama}">
+                            <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent"></div>
+                            <div class="absolute top-5 left-5">
+                                <span class="bg-indigo-600/20 backdrop-blur text-indigo-300 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border border-indigo-500/30">
+                                    ${item.kategori || 'Kuliner'}
+                                </span>
+                            </div>
+                            <div class="absolute bottom-5 right-5 flex items-center gap-1.5 bg-slate-950/80 backdrop-blur px-3 py-1 rounded-full border border-slate-800">
+                                <i class="fa-solid fa-star text-amber-400 text-[10px]"></i>
+                                <span class="text-xs font-black text-slate-200">${item.rating?.nilai || 5.0}</span>
+                            </div>
+                        </div>
+                        <div class="p-8">
+                            <h4 class="text-2xl font-black tracking-tight mb-2">${item.nama}</h4>
+                            <div class="flex items-start gap-3 text-slate-500 mb-8">
+                                <i class="fa-solid fa-location-dot mt-1 text-indigo-500"></i>
+                                <div class="text-xs leading-relaxed font-medium">
+                                    <p class="text-slate-300 font-bold">${item.lokasi?.wilayah}</p>
+                                    <p class="line-clamp-1">${item.lokasi?.alamat}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex gap-3">
+                                <button onclick="focusOnMap(${item.lokasi?.latitude}, ${item.lokasi?.longitude})" 
+                                   class="flex-1 bg-slate-800 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all active:scale-95 shadow-lg">
+                                   Explore Map
+                                </button>
+                                ${isAdmin ? `
+                                    <button onclick="deleteData(${item.id_makanan})" class="w-14 bg-red-500/10 text-red-500 rounded-2xl border border-red-500/20 hover:bg-red-500 hover:text-white transition-all">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>`;
+                grid.innerHTML += card;
+
+                // Tambah Marker Peta [cite: 62, 150]
+                if (item.lokasi?.latitude && item.lokasi?.longitude) {
+                    const marker = L.marker([item.lokasi.latitude, item.lokasi.longitude]).addTo(map)
+                        .bindPopup(`
+                            <div class="p-2 text-slate-900">
+                                <b class="text-lg">${item.nama}</b><br>
+                                <span class="text-xs text-slate-500">${item.lokasi.alamat}</span>
+                            </div>
+                        `);
+                    markers.push(marker);
+                }
+            });
+        }
+
+        // QoL: Filter Real-time [cite: 134]
+        function filterData() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = allItems.filter(i => 
+                i.nama.toLowerCase().includes(query) || 
+                i.lokasi.wilayah.toLowerCase().includes(query)
+            );
+            renderCards(filtered);
+        }
+
+        function focusOnMap(lat, lng) {
+            if(!lat || !lng) return alert("Koordinat tidak valid!");
+            map.flyTo([lat, lng], 16, { animate: true, duration: 1.5 });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // QoL: Toggle Admin UI dengan indikator [cite: 28, 33]
+        function toggleAdmin() {
+            isAdmin = !isAdmin;
+            const panel = document.getElementById('adminPanel');
+            const topBar = document.getElementById('topBar');
+            const modeText = document.getElementById('modeText');
+            const dot = document.getElementById('dotNode');
+            const ping = document.getElementById('pingNode');
+
+            if(isAdmin) {
+                panel.classList.remove('hidden');
+                setTimeout(() => {
+                    panel.classList.replace('opacity-0', 'opacity-100');
+                    panel.classList.replace('translate-y-10', 'translate-y-0');
+                }, 50);
+                topBar.className = "fixed top-0 left-0 w-full h-1 z-[100] transition-all duration-700 bg-indigo-500";
+                modeText.innerText = "Admin Access";
+                modeText.classList.replace('text-slate-400', 'text-indigo-400');
+                dot.classList.replace('bg-emerald-500', 'bg-indigo-500');
+                ping.classList.replace('bg-emerald-400', 'bg-indigo-400');
+            } else {
+                panel.classList.replace('opacity-100', 'opacity-0');
+                panel.classList.replace('translate-y-0', 'translate-y-10');
+                setTimeout(() => panel.classList.add('hidden'), 500);
+                topBar.className = "fixed top-0 left-0 w-full h-1 z-[100] transition-all duration-700 bg-slate-800";
+                modeText.innerText = "User Mode";
+                modeText.classList.replace('text-indigo-400', 'text-slate-400');
+                dot.classList.replace('bg-indigo-500', 'bg-emerald-500');
+                ping.classList.replace('bg-indigo-400', 'bg-emerald-400');
+            }
+            renderCards(allItems);
+        }
+
+        // API Handler: Tambah Data [cite: 248]
+        document.getElementById('foodForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const payload = {
+                nama: document.getElementById('nama').value,
+                wilayah: document.getElementById('wilayah').value,
+                kategori: document.getElementById('kategori').value,
+                latitude: document.getElementById('latitude').value,
+                longitude: document.getElementById('longitude').value,
+                alamat: document.getElementById('alamat').value,
+                foto_url: document.getElementById('foto_url').value,
+                deskripsi: `Masakan khas ${document.getElementById('wilayah').value}`
+            };
+
+            const res = await fetch('/api/makanan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if(res.ok) {
+                alert("Data Berhasil Disimpan!");
+                document.getElementById('foodForm').reset();
+                init();
+            }
+        };
+
+        // API Handler: Hapus Data [cite: 253]
+        async function deleteData(id) {
+            if(confirm('Apakah Anda yakin ingin menghapus data ini?')) {
+                const res = await fetch(`/api/makanan/${id}`, { method: 'DELETE' });
+                if(res.ok) init();
+            }
+        }
+
+        // Jalankan aplikasi
+        init();
+    </script>
+</body>
+</html>

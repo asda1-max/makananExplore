@@ -1,0 +1,42 @@
+{
+  "makanan": [
+    {
+      "id_makanan": 1766156441697,
+      "nama": "Omah Purwo",
+      "deskripsi": "Masakan khas DI Yogyakarta",
+      "kategori": "Manis",
+      "foto_url": "https://streetviewpixels-pa.googleapis.com/v1/thumbnail?panoid=rSvcy9B5j4FIeLrE2PokYw&cb_client=search.gws-prod.gps&w=408&h=240&yaw=176.51587&pitch=0&thumbfov=100",
+      "id_lokasi": 1766156441696
+    }
+  ],
+  "lokasi": [
+    {
+      "id_lokasi": 1766156300135,
+      "alamat": "dsadasda",
+      "wilayah": "123123",
+      "latitude": -7.79,
+      "longitude": 110.36
+    },
+    {
+      "id_lokasi": 1766156441696,
+      "alamat": "6CXX+GV Purwomartani, Kabupaten Sleman, Daerah Istimewa Yogyakarta",
+      "wilayah": "DI Yogyakarta",
+      "latitude": -7.750921903822579,
+      "longitude": 110.44970949669758
+    }
+  ],
+  "rating": [
+    {
+      "id_rating": 1766156300137,
+      "id_makanan": 1766156300136,
+      "nilai": 5,
+      "jumlah_review": 1
+    },
+    {
+      "id_rating": 1766156441698,
+      "id_makanan": 1766156441697,
+      "nilai": 5,
+      "jumlah_review": 1
+    }
+  ]
+}
